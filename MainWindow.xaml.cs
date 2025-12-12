@@ -1,268 +1,206 @@
-using ClosedXML.Excel;
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Input;
+using Microsoft.Win32;
+using ClosedXML.Excel;
 
 namespace RandomScoreAllocatorWPF
 {
     public partial class MainWindow : Window
     {
-        private string? _excelPath;
-        private List<string> _subjects = new();
-        private List<double> _weights = new();
-        private List<string> _students = new();
-        private DataTable? _previewTable;
+        private string _loadedFilePath = "";
+        private DataTable _previewTable = null;
 
         public MainWindow()
         {
             InitializeComponent();
         }
 
-        private void BtnHelp_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("表格格式示例：\n\n姓名 | 数学(50%) | 语文(30%) | 英语(20%)\n张三 | ...\n李四 | ...\n\n“生成预览”不会修改原表，只在界面展示；“导出结果”会在同目录生成一个新文件。", "使用说明");
-        }
+        private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.ButtonState == MouseButtonState.Pressed) this.DragMove(); }
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => this.Close();
+        private void BtnHelp_Click(object sender, RoutedEventArgs e) => MessageBox.Show("1. 选择Excel文件。\n2. 点击生成预览。\n3. 程序将严格控制单科不超满分，并优先填补靠后的科目。", "使用说明");
 
         private void BtnBrowse_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Filter = "Excel 文件 (*.xlsx)|*.xlsx" };
-            if (dlg.ShowDialog() == true)
+            var dialog = new OpenFileDialog
             {
-                _excelPath = dlg.FileName;
-                TxtFile.Text = _excelPath;
-                try
-                {
-                    LoadExcelHeader(_excelPath);
-                    LoadStudents(_excelPath);
-                    MessageBox.Show($"读取成功：{_students.Count} 个学生，{_subjects.Count} 个科目。", "成功");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("读取失败：" + ex.Message);
-                }
-            }
-        }
+                Filter = "Excel Files|*.xlsx;*.xls",
+                Title = "选择 Excel 文件"
+            };
 
-        private void LoadExcelHeader(string path)
-        {
-            _subjects.Clear();
-            _weights.Clear();
-
-            using var wb = new XLWorkbook(path);
-            var ws = wb.Worksheet(1);
-            var header = ws.Row(1);
-            int lastCol = header.LastCellUsed().Address.ColumnNumber;
-
-            var regex = new Regex(@"(.+)\((\d+)%\)");
-            for (int col = 2; col <= lastCol; col++)
+            if (dialog.ShowDialog() == true)
             {
-                string title = header.Cell(col).GetString().Trim();
-                var m = regex.Match(title);
-                if (m.Success)
-                {
-                    _subjects.Add(m.Groups[1].Value.Trim());
-                    _weights.Add(double.Parse(m.Groups[2].Value));
-                }
-                else
-                {
-                    _subjects.Add(title);
-                    _weights.Add(1.0);
-                }
-            }
-        }
-
-        private void LoadStudents(string path)
-        {
-            _students.Clear();
-            using var wb = new XLWorkbook(path);
-            var ws = wb.Worksheet(1);
-            int lastRow = ws.LastRowUsed().RowNumber();
-            for (int row = 2; row <= lastRow; row++)
-            {
-                string name = ws.Cell(row, 1).GetString().Trim();
-                if (!string.IsNullOrEmpty(name))
-                    _students.Add(name);
+                _loadedFilePath = dialog.FileName;
+                TxtFile.Text = _loadedFilePath;
+                MessageBox.Show("文件已选中。", "准备就绪");
             }
         }
 
         private void BtnPreview_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(_excelPath))
+            if (string.IsNullOrEmpty(_loadedFilePath))
             {
-                MessageBox.Show("请先选择 Excel 文件。");
-                return;
-            }
-            if (_subjects.Count == 0 || _students.Count == 0)
-            {
-                MessageBox.Show("未读取到科目或学生，请检查 Excel。");
+                MessageBox.Show("请先选择 Excel 文件。", "提示");
                 return;
             }
 
-            if (!ValidateInputs(out int minEach, out double maxFrac))
-                return;
-
-            // 读取每个学生的总分
-            Dictionary<string, int> studentTotals = new Dictionary<string, int>();
             try
             {
-                using var wb = new XLWorkbook(_excelPath);
+                using var wb = new XLWorkbook(_loadedFilePath);
                 var ws = wb.Worksheet(1);
-                var header = ws.Row(1);
-                int lastCol = header.LastCellUsed().Address.ColumnNumber;
-                
-                // 查找总分列的索引
+                var headerRow = ws.Row(1);
+                int lastCol = headerRow.LastCellUsed().Address.ColumnNumber;
+
+                // --- 1. 识别列 ---
+                int nameColIndex = -1;
                 int totalColIndex = -1;
-                for (int col = 2; col <= lastCol; col++)
+                var subjectMaxScores = new Dictionary<string, int>();
+
+                var regexSubject = new Regex(@"([\s\S]+?)[（\(]\s*(\d+)\s*(?:分|points)?\s*[）\)]");
+
+                for (int col = 1; col <= lastCol; col++)
                 {
-                    string title = header.Cell(col).GetString().Trim();
-                    if (title == "总分" || title == "合计")
+                    string rawTitle = headerRow.Cell(col).GetString().Trim();
+                    string cleanTitle = rawTitle.Replace("\n", "").Replace("\r", "").Trim();
+
+                    if (cleanTitle == "姓名" || cleanTitle == "Name" || cleanTitle == "学生姓名")
+                    {
+                        nameColIndex = col;
+                        continue;
+                    }
+                    if (cleanTitle.Contains("合计") || cleanTitle.Contains("总分") || cleanTitle == "Total")
                     {
                         totalColIndex = col;
-                        break;
+                        continue;
                     }
-                }
-                
-                if (totalColIndex == -1)
-                {
-                    MessageBox.Show("在Excel中未找到\"总分\"或\"合计\"列，请确保存在此列。");
-                    return;
-                }
-                
-                // 读取每个学生的总分
-                int lastRow = ws.LastRowUsed().RowNumber();
-                for (int row = 2; row <= lastRow; row++)
-                {
-                    string name = ws.Cell(row, 1).GetString().Trim();
-                    if (!string.IsNullOrEmpty(name))
+
+                    var m = regexSubject.Match(rawTitle);
+                    if (m.Success)
                     {
-                        if (!int.TryParse(ws.Cell(row, totalColIndex).GetString(), out int total) || total <= 0)
+                        int maxScore = int.Parse(m.Groups[2].Value);
+                        if (!subjectMaxScores.ContainsKey(cleanTitle))
                         {
-                            MessageBox.Show($"学生 {name} 的总分无效，请确保总分为正整数。");
-                            return;
+                            subjectMaxScores.Add(cleanTitle, maxScore);
                         }
-                        studentTotals[name] = total;
                     }
                 }
+
+                if (nameColIndex == -1 || totalColIndex == -1 || subjectMaxScores.Count == 0)
+                    throw new Exception($"未能识别列。找到的科目数：{subjectMaxScores.Count}。\n请检查表头是否包含“(20分)”字样。");
+
+                // --- 2. 准备 DataTable (修改了列的添加顺序) ---
+                _previewTable = new DataTable();
+                _previewTable.Columns.Add("姓名");
+
+                // 【修改点】先添加所有科目列
+                foreach (var subjectName in subjectMaxScores.Keys)
+                {
+                    _previewTable.Columns.Add(subjectName, typeof(int));
+                }
+
+                // 【修改点】最后再添加总分列
+                _previewTable.Columns.Add("原总分", typeof(int));
+                _previewTable.Columns.Add("计算和", typeof(int));
+
+                // --- 3. 逐行计算 ---
+                var rows = ws.RowsUsed().Skip(1);
+                int rowIndex = 0;
+                int minEach = 0;
+                if (int.TryParse(TxtMinEach.Text, out int minVal)) minEach = minVal;
+
+                bool useFixedSeed = ChkFixedSeed.IsChecked == true;
+                var subjectList = subjectMaxScores.Keys.ToList();
+                var maxScoreList = subjectMaxScores.Values.ToList();
+
+                int recognizedPaperMax = maxScoreList.Sum();
+
+                foreach (var row in rows)
+                {
+                    rowIndex++;
+                    string name = row.Cell(nameColIndex).GetString();
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+
+                    if (!row.Cell(totalColIndex).TryGetValue(out int targetTotal)) targetTotal = 0;
+
+                    Dictionary<string, int> scores;
+                    if (targetTotal <= 0)
+                    {
+                        scores = subjectList.ToDictionary(s => s, s => 0);
+                    }
+                    else
+                    {
+                        int? seed = useFixedSeed ? (rowIndex * 999 + targetTotal) : (int?)null;
+
+                        scores = ScoreAllocator.Allocate(
+                            targetTotal,
+                            subjectList,
+                            maxScoreList,
+                            minEach: minEach,
+                            seed: seed
+                        );
+                    }
+
+                    DataRow dtRow = _previewTable.NewRow();
+                    dtRow["姓名"] = name;
+
+                    // 填充各科分数
+                    foreach (var kvp in scores)
+                    {
+                        dtRow[kvp.Key] = kvp.Value;
+                    }
+
+                    // 填充总分（顺序无关紧要，因为是通过列名赋值的，但DataTable结构决定了显示顺序）
+                    dtRow["原总分"] = targetTotal;
+                    dtRow["计算和"] = scores.Values.Sum();
+
+                    _previewTable.Rows.Add(dtRow);
+                }
+
+                GridPreview.ItemsSource = _previewTable.DefaultView;
+                MessageBox.Show($"生成完成！\n程序识别到的卷面总满分是: {recognizedPaperMax} 分。", "完成");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("读取总分失败：" + ex.Message);
-                return;
+                MessageBox.Show($"生成预览失败: {ex.Message}", "错误");
             }
-
-            var table = new DataTable();
-            table.Columns.Add("姓名", typeof(string));
-            foreach (var s in _subjects) table.Columns.Add(s, typeof(int));
-            table.Columns.Add("合计", typeof(int));
-
-            for (int i = 0; i < _students.Count; i++)
-            {
-                var name = _students[i];
-                
-                // 获取当前学生的总分
-                if (!studentTotals.TryGetValue(name, out int total))
-                {
-                    MessageBox.Show($"未找到学生 {name} 的总分数据。");
-                    return;
-                }
-                
-                // 验证该学生的总分是否符合要求
-                if (_subjects.Count * minEach > total)
-                {
-                    MessageBox.Show($"学生 {name} 的总分过小：至少需要 {_subjects.Count * minEach} 才能满足每科最少 {minEach}。");
-                    return;
-                }
-                
-                var weights = ChkUseWeights.IsChecked == true ? _weights : Enumerable.Repeat(1.0, _subjects.Count).ToList();
-                var alloc = ScoreAllocator.Allocate(
-                    totalScore: total,
-                    subjects: _subjects,
-                    weights: weights,
-                    minEach: minEach,
-                    maxEachFraction: maxFrac,
-                    randomness: 0.25,
-                    seed: (ChkFixedSeed.IsChecked == true ? i + 1 : (int?)null)
-                );
-                
-                var row = table.NewRow();
-                row["姓名"] = name;
-                int sum = 0;
-                foreach (var s in _subjects)
-                {
-                    int v = alloc[s];
-                    row[s] = v;
-                    sum += v;
-                }
-                row["合计"] = sum;
-                table.Rows.Add(row);
-            }
-
-            _previewTable = table;
-            GridPreview.ItemsSource = _previewTable.DefaultView;
-        }
-
-        private bool ValidateInputs(out int minEach, out double maxFrac)
-        {
-            minEach = 0; maxFrac = 0;
-            if (!int.TryParse(TxtMinEach.Text, out minEach) || minEach < 0)
-            {
-                MessageBox.Show("最小单科分请输入 >=0 的整数。");
-                return false;
-            }
-            if (!double.TryParse(TxtMaxFrac.Text, out maxFrac) || maxFrac <= 0 || maxFrac > 1)
-            {
-                MessageBox.Show("单科最大占比请输入 (0,1] 的小数。");
-                return false;
-            }
-            return true;
         }
 
         private void BtnExport_Click(object sender, RoutedEventArgs e)
         {
             if (_previewTable == null || _previewTable.Rows.Count == 0)
             {
-                MessageBox.Show("请先生成预览。");
-                return;
-            }
-            if (string.IsNullOrEmpty(_excelPath))
-            {
-                MessageBox.Show("未选择源 Excel。");
+                MessageBox.Show("无数据可导出。", "提示");
                 return;
             }
 
-            var dir = Path.GetDirectoryName(_excelPath)!;
-            var name = Path.GetFileNameWithoutExtension(_excelPath);
-            var outPath = Path.Combine(dir, $"{name}_随机分配结果.xlsx");
-
-            try
+            var saveDialog = new SaveFileDialog
             {
-                using var wb = new XLWorkbook();
-                var ws = wb.AddWorksheet("随机分配");
-                // 写入表头
-                for (int c = 0; c < _previewTable.Columns.Count; c++)
-                    ws.Cell(1, c + 1).Value = _previewTable.Columns[c].ColumnName;
-                // 写入行
-                for (int r = 0; r < _previewTable.Rows.Count; r++)
+                Filter = "Excel Files|*.xlsx",
+                FileName = $"分配结果_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
+            };
+
+            if (saveDialog.ShowDialog() == true)
+            {
+                try
                 {
-                    for (int c = 0; c < _previewTable.Columns.Count; c++)
+                    using (var wb = new XLWorkbook())
                     {
-                        ws.Cell(r + 2, c + 1).SetValue(_previewTable.Rows[r][c]?.ToString());
-
+                        var ws = wb.Worksheets.Add("分配详情");
+                        ws.Cell(1, 1).InsertTable(_previewTable);
+                        ws.Columns().AdjustToContents();
+                        wb.SaveAs(saveDialog.FileName);
                     }
+                    MessageBox.Show("导出成功。", "成功");
                 }
-                ws.Columns().AdjustToContents();
-                wb.SaveAs(outPath);
-                MessageBox.Show($"导出完成：\n{outPath}");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("导出失败：" + ex.Message);
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"导出失败: {ex.Message}", "错误");
+                }
             }
         }
     }
