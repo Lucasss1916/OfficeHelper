@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using ClosedXML.Excel;
 using Microsoft.Win32;
@@ -45,9 +47,33 @@ namespace RandomScoreAllocatorWPF
 
         private void BtnHelp_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "1. 选择 Excel 文件并切换工作表。\n2. 点击生成预览，程序会自动识别复杂表头。\n3. 编辑预览中的总分或单科分数后，程序会按规则联动更新该行。\n4. 导出时会保留原工作表样式，只回填成绩区域。",
-                "使用说明");
+            ShowStyledDialog(
+                "使用说明",
+                "1. 选择 Excel 文件并切换工作表。\n2. 点击生成预览，程序会自动识别复杂表头。\n3. 编辑预览中的总分或单科分数后，程序会按规则联动更新该行。\n4. 导出时会保留原工作表样式，只回填成绩区域。");
+        }
+
+        private void BtnAbout_Click(object sender, RoutedEventArgs e)
+        {
+            var result = ShowStyledDialog(
+                "关于 OfficeHelper",
+                "OfficeHelper 是一个面向复杂 Excel 成绩模板的桌面工具，支持多 Sheet 识别、预览编辑和原样式导出。\n\n项目主页：\nhttps://github.com/Lucasss1916/OfficeHelper",
+                showOpenLinkButton: true);
+
+            if (result == true)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://github.com/Lucasss1916/OfficeHelper",
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"打开主页失败: {ex.Message}", "错误");
+                }
+            }
         }
 
         private void BtnBrowse_Click(object sender, RoutedEventArgs e)
@@ -719,6 +745,131 @@ namespace RandomScoreAllocatorWPF
             _currentSubjectList.Clear();
             _currentEffectiveMaxScoreList.Clear();
             GridPreview.ItemsSource = null;
+        }
+
+        private bool? ShowStyledDialog(string title, string message, bool showOpenLinkButton = false)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Owner = this,
+                Width = 460,
+                Height = showOpenLinkButton ? 310 : 270,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStyle = WindowStyle.None,
+                Background = Brushes.Transparent,
+                AllowsTransparency = true,
+                ShowInTaskbar = false
+            };
+
+            var primaryTextBrush = new SolidColorBrush(Color.FromRgb(22, 32, 51));
+            var secondaryTextBrush = new SolidColorBrush(Color.FromRgb(107, 118, 139));
+            var cardBackgroundBrush = new SolidColorBrush(Color.FromRgb(249, 251, 254));
+            var cardBorderBrush = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+            var accentBlueBrush = new SolidColorBrush(Color.FromRgb(10, 132, 255));
+            var neutralButtonBrush = new SolidColorBrush(Color.FromRgb(232, 237, 244));
+
+            var rootBorder = new Border
+            {
+                Background = cardBackgroundBrush,
+                BorderBrush = cardBorderBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(26),
+                Padding = new Thickness(22)
+            };
+
+            var overlayGrid = new Grid
+            {
+                Background = new SolidColorBrush(Color.FromArgb(150, 247, 250, 253))
+            };
+
+            var hostGrid = new Grid();
+            hostGrid.Children.Add(rootBorder);
+            rootBorder.HorizontalAlignment = HorizontalAlignment.Center;
+            rootBorder.VerticalAlignment = VerticalAlignment.Center;
+
+            var mainPanel = new Grid();
+            mainPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var headerPanel = new StackPanel();
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 20,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = primaryTextBrush
+            });
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = "应用内说明与链接",
+                Margin = new Thickness(0, 6, 0, 0),
+                FontSize = 12,
+                Foreground = secondaryTextBrush
+            });
+            Grid.SetRow(headerPanel, 0);
+            mainPanel.Children.Add(headerPanel);
+
+            var contentBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(243, 247, 252)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 233, 243)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(18),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 18, 0, 18)
+            };
+            contentBorder.Child = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = primaryTextBrush,
+                FontSize = 13,
+                LineHeight = 22
+            };
+            Grid.SetRow(contentBorder, 1);
+            mainPanel.Children.Add(contentBorder);
+
+            var footerPanel = new DockPanel { LastChildFill = false };
+
+            if (showOpenLinkButton)
+            {
+                var openLinkButton = CreateDialogButton("打开主页", accentBlueBrush, Brushes.White);
+                openLinkButton.Click += (_, _) => dialog.DialogResult = true;
+                DockPanel.SetDock(openLinkButton, Dock.Right);
+                footerPanel.Children.Add(openLinkButton);
+            }
+
+            var closeButton = CreateDialogButton("关闭", neutralButtonBrush, primaryTextBrush);
+            closeButton.Margin = new Thickness(0, 0, showOpenLinkButton ? 10 : 0, 0);
+            closeButton.Click += (_, _) => dialog.DialogResult = false;
+            DockPanel.SetDock(closeButton, Dock.Right);
+            footerPanel.Children.Add(closeButton);
+
+            Grid.SetRow(footerPanel, 2);
+            mainPanel.Children.Add(footerPanel);
+
+            rootBorder.Child = mainPanel;
+            overlayGrid.Children.Add(hostGrid);
+            dialog.Content = overlayGrid;
+            return dialog.ShowDialog();
+        }
+
+        private Button CreateDialogButton(string text, Brush background, Brush foreground)
+        {
+            return new Button
+            {
+                Content = text,
+                Background = background,
+                Foreground = foreground,
+                Padding = new Thickness(18, 10, 18, 10),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0)
+            };
         }
 
         private sealed record GenerationOptions(int MinEach, double? MaxEachLimitPercent, bool UseFixedSeed);

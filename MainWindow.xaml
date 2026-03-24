@@ -3,95 +3,202 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
-        Title="随机分数分配器" Height="768" Width="1024" 
-        Background="#F0F2F5" 
+        Title="随机分数分配器"
+        Height="800"
+        Width="1220"
+        MinHeight="720"
+        MinWidth="1080"
+        Background="#EEF2F8"
         WindowStartupLocation="CenterScreen"
-        FontFamily="Segoe UI" TextOptions.TextFormattingMode="Display"
-        WindowStyle="None" 
+        FontFamily="Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        WindowStyle="None"
         ResizeMode="CanResize">
 
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="5"/>
-    </WindowChrome.WindowChrome>
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="0"/>
+    </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PrimaryDark" Color="#222831"/>
-        <SolidColorBrush x:Key="PrimaryTeal" Color="#00ADB5"/>
-        <SolidColorBrush x:Key="AccentPurple" Color="#6C5CE7"/>
-        <SolidColorBrush x:Key="AccentGreen" Color="#00B894"/>
-        <SolidColorBrush x:Key="TextGray" Color="#636E72"/>
+        <LinearGradientBrush x:Key="WindowBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#F7F9FD" Offset="0"/>
+            <GradientStop Color="#EEF4FB" Offset="0.5"/>
+            <GradientStop Color="#E9F0F8" Offset="1"/>
+        </LinearGradientBrush>
 
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" Direction="270" ShadowDepth="2" BlurRadius="10" Opacity="0.05"/>
-                </Setter.Value>
-            </Setter>
+        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#162033"/>
+        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#6B768B"/>
+        <SolidColorBrush x:Key="HairlineBrush" Color="#D8E1EE"/>
+        <SolidColorBrush x:Key="GlassFillBrush" Color="#F9FBFE"/>
+        <SolidColorBrush x:Key="GlassBorderBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="FieldFillBrush" Color="#F4F7FB"/>
+        <SolidColorBrush x:Key="FieldBorderBrush" Color="#D5DFEB"/>
+        <SolidColorBrush x:Key="AccentBlueBrush" Color="#0A84FF"/>
+        <SolidColorBrush x:Key="AccentGreenBrush" Color="#34C759"/>
+        <SolidColorBrush x:Key="AccentOrangeBrush" Color="#FF9F0A"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#FF453A"/>
+        <SolidColorBrush x:Key="TableHeaderBrush" Color="#F1F5FA"/>
+        <SolidColorBrush x:Key="TableAltRowBrush" Color="#FAFCFF"/>
+
+        <DropShadowEffect x:Key="SoftShadow"
+                          Color="#5E7494"
+                          BlurRadius="26"
+                          ShadowDepth="8"
+                          Opacity="0.10"/>
+
+        <Style x:Key="GlassCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="26"/>
+            <Setter Property="Effect" Value="{StaticResource SoftShadow}"/>
+        </Style>
+
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
 
         <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextGray}"/>
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="CaptionStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{StaticResource FieldFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FieldBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="#DFE6E9"/>
-            <Setter Property="Background" Value="#FAFAFA"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="border" CornerRadius="4" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Background="{TemplateBinding Background}">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"/>
+                        <Border x:Name="InputBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="16">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsFocused" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource PrimaryTeal}"/>
-                                <Setter TargetName="border" Property="Background" Value="White"/>
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource AccentBlueBrush}"/>
+                                <Setter TargetName="InputBorder" Property="Background" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsReadOnly" Value="True">
+                                <Setter TargetName="InputBorder" Property="Background" Value="#F7F9FC"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{StaticResource FieldFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FieldBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,10"/>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
         </Style>
 
         <Style TargetType="Button">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Padding" Value="18,10"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" CornerRadius="6" Background="{TemplateBinding Background}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="18">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.92"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
-                                <Setter TargetName="border" Property="Margin" Value="0,1,0,0"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.80"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#BDC3C7"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#B8C7DB"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#E6EDF5"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#E6EDF5"/>
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource TableAltRowBrush}"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource TableHeaderBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderBrush" Value="#DEE7F1"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#E6EDF5"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="MinHeight" Value="38"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F4F8FD"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E7F1FF"/>
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid Background="{StaticResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -99,120 +206,206 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Background="{StaticResource PrimaryDark}" Height="60" Padding="20,0" 
+        <Border Margin="18,16,18,0"
+                Style="{StaticResource GlassCardStyle}"
+                Background="#F7FAFE"
+                Padding="24,18"
                 MouseLeftButtonDown="Header_MouseLeftButtonDown">
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="24" Height="24" Margin="0,0,12,0">
-                        <Image Source="/icon.ico" 
-           RenderOptions.BitmapScalingMode="HighQuality" 
-           HorizontalAlignment="Center" 
-           VerticalAlignment="Center"/>
+                    <Border Width="42" Height="42" Background="#E8F1FE" CornerRadius="14" Margin="0,0,14,0">
+                        <Image Source="/icon.ico" Margin="9" RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Border>
-                    <TextBlock Text="随机分数分配器" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <StackPanel>
+                        <TextBlock Text="随机分数分配器" Foreground="{StaticResource PrimaryTextBrush}" FontSize="21" FontWeight="SemiBold"/>
+                        <TextBlock Text="Excel template aware score workspace" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,3,0,0"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                    <Button Content="说明" Background="Transparent" BorderThickness="0" Foreground="#AAA" Click="BtnHelp_Click" Margin="0,0,10,0"/>
-                    <Button Content="—" Width="40" Background="Transparent" BorderThickness="0" Click="BtnMinimize_Click" FontSize="14"/>
-                    <Button Content="✕" Width="50" Background="#FF4757" BorderThickness="0" Click="BtnClose_Click" Margin="10,0,10,0"/>
+                    <Button Content="说明" Background="#8E8E93" Click="BtnHelp_Click" Margin="0,0,10,0"/>
+                    <Button Content="关于" Background="#B0B7C3" Foreground="#243244" Click="BtnAbout_Click" Margin="0,0,10,0"/>
+                    <Button Content="—" Width="42" Padding="0" Background="#D1D5DB" Foreground="#334155" Click="BtnMinimize_Click" Margin="0,0,8,0"/>
+                    <Button Content="✕" Width="44" Padding="0" Background="{StaticResource DangerBrush}" Click="BtnClose_Click"/>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="20,20,20,10" Padding="20">
+        <Border Grid.Row="1" Margin="18,16,18,14" Style="{StaticResource GlassCardStyle}" Padding="22">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="30"/>
-                    <ColumnDefinition Width="1.5*"/>
-                    <ColumnDefinition Width="30"/>
+                    <ColumnDefinition Width="2.2*"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="1.9*"/>
+                    <ColumnDefinition Width="20"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="EXCEL 源文件" Style="{StaticResource LabelStyle}"/>
+                    <TextBlock Text="文件与工作表" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="选择源文件后，可在这里切换 sheet 并保持原有操作路径。"
+                               Style="{StaticResource CaptionStyle}"
+                               Margin="0,6,0,16"/>
+
+                    <TextBlock Text="Excel 源文件" Style="{StaticResource LabelStyle}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="TxtFile" IsReadOnly="True" Text="请选择文件..." Foreground="#999" Margin="0,0,8,0"/>
-                        <Button Grid.Column="1" Content="浏览..." Background="{StaticResource AccentPurple}" Click="BtnBrowse_Click"/>
+                        <TextBox x:Name="TxtFile" IsReadOnly="True" Text="请选择文件..." Margin="0,0,10,0"/>
+                        <Button Grid.Column="1" Content="浏览文件" Background="{StaticResource AccentOrangeBrush}" Click="BtnBrowse_Click"/>
                     </Grid>
-                    <TextBlock Text="格式: 第一行需包含 姓名 | 学科(分数)|总分（分数）" Foreground="#B2BEC3" FontSize="11" Margin="2,4,0,0"/>
-                    <TextBlock Text="工作表" FontSize="11" Foreground="#636E72" Margin="2,10,0,0"/>
-                    <ComboBox x:Name="CmbSheets" Margin="0,4,0,0" SelectionChanged="CmbSheets_SelectionChanged"/>
+
+                    <Border Background="#F3F7FC"
+                            BorderBrush="#E1E9F3"
+                            BorderThickness="1"
+                            CornerRadius="16"
+                            Padding="12"
+                            Margin="0,14,0,0">
+                        <TextBlock Text="支持复杂表头、课程信息区、合并单元格和多 Sheet 模板。"
+                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <TextBlock Text="工作表" Style="{StaticResource LabelStyle}" Margin="0,16,0,8"/>
+                    <ComboBox x:Name="CmbSheets" SelectionChanged="CmbSheets_SelectionChanged"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
-                    <TextBlock Text="生成参数" Style="{StaticResource LabelStyle}"/>
+                    <TextBlock Text="生成参数" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="继续沿用你的原流程，只把视觉和输入质感做得更像 iOS。"
+                               Style="{StaticResource CaptionStyle}"
+                               Margin="0,6,0,16"/>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
-                            <TextBlock Text="单科最低分" FontSize="11" Foreground="#636E72"/>
-                            <TextBox x:Name="TxtMinEach" Text="5" Margin="0,4,0,0" HorizontalContentAlignment="Center"/>
+                            <TextBlock Text="单科最低分" Style="{StaticResource LabelStyle}"/>
+                            <TextBox x:Name="TxtMinEach" Text="5" HorizontalContentAlignment="Center"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="最高分百分比上限" FontSize="11" Foreground="#636E72"/>
-                            <TextBox x:Name="TxtMaxEachLimit" Text="" Margin="0,4,0,0" HorizontalContentAlignment="Center"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="4">
-
-                            <CheckBox x:Name="ChkFixedSeed" Content="固定随机种子" IsChecked="True" VerticalAlignment="Bottom" FontSize="12" Foreground="#2D3436" Margin="0,22,0,0"/>
+                            <TextBlock Text="最高分百分比上限" Style="{StaticResource LabelStyle}"/>
+                            <TextBox x:Name="TxtMaxEachLimit" HorizontalContentAlignment="Center"/>
                         </StackPanel>
                     </Grid>
+
+                    <Border Background="#EEF6FF"
+                            BorderBrush="#DCE9FB"
+                            BorderThickness="1"
+                            CornerRadius="16"
+                            Padding="12"
+                            Margin="0,14,0,0">
+                        <TextBlock Text="例如输入 80，表示每一题最多只能分到该题满分的 80%。"
+                                   Foreground="#3B5B8C"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <CheckBox x:Name="ChkFixedSeed"
+                              Content="固定随机种子，保持结果稳定"
+                              IsChecked="True"
+                              Margin="0,16,0,0"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="4" VerticalAlignment="Top" Margin="0,18,0,0">
-                    <Button Content="生成预览数据" Background="{StaticResource AccentGreen}" Click="BtnPreview_Click" Padding="24,10" FontSize="14"/>
+                <StackPanel Grid.Column="4" VerticalAlignment="Stretch">
+                    <Border Background="#F7FAFF"
+                            BorderBrush="#E2EAF5"
+                            BorderThickness="1"
+                            CornerRadius="18"
+                            Padding="14"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="快捷提示" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="SemiBold"/>
+                            <TextBlock Text="预览区是主工作区，生成后可以直接改单行数据。"
+                                       Foreground="{StaticResource SecondaryTextBrush}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Button Content="生成预览数据"
+                            Background="{StaticResource AccentGreenBrush}"
+                            Click="BtnPreview_Click"
+                            Padding="24,12"
+                            FontSize="14"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="20,0,20,20">
+        <Border Grid.Row="2" Margin="18,0,18,16" Style="{StaticResource GlassCardStyle}" Padding="0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border BorderBrush="#F0F0F0" BorderThickness="0,0,0,1" Padding="16,12">
-                    <DockPanel>
-                        <TextBlock Text="数据预览" FontWeight="Bold" FontSize="14" Foreground="#2D3436" VerticalAlignment="Center"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <TextBlock Text="预览仅显示前 50 条" Foreground="#B2BEC3" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <Border Background="#F8FBFE"
+                        BorderBrush="#E3EBF3"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="26,26,0,0"
+                        Padding="20,16">
+                    <DockPanel LastChildFill="False">
+                        <StackPanel>
+                            <TextBlock Text="数据预览" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="SemiBold" FontSize="18"/>
+                            <TextBlock Text="这是主要工作区。这里直接查看、修正并确认最终结果。"
+                                       Foreground="{StaticResource SecondaryTextBrush}"
+                                       FontSize="12"
+                                       Margin="0,5,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                            <Border Background="#EDF6FF" CornerRadius="999" Padding="12,6" Margin="0,0,10,0">
+                                <TextBlock Text="Preview Editable" Foreground="#3B5B8C" FontSize="11" FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock Text="预览区为主"
+                                       Foreground="{StaticResource SecondaryTextBrush}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"/>
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
-                <DataGrid Grid.Row="1" x:Name="GridPreview" BorderThickness="0" Background="White" 
-                          AutoGenerateColumns="True" CanUserAddRows="False" IsReadOnly="False"
-                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F0F0F0" RowHeaderWidth="0"
+                <DataGrid Grid.Row="1"
+                          x:Name="GridPreview"
+                          AutoGenerateColumns="True"
+                          CanUserAddRows="False"
+                          IsReadOnly="False"
                           AutoGeneratingColumn="GridPreview_AutoGeneratingColumn"
                           CellEditEnding="GridPreview_CellEditEnding"/>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="3" Background="White" Height="60">
-            <Border BorderBrush="#EEEEEE" BorderThickness="0,1,0,0">
-                <DockPanel Margin="20,0" LastChildFill="False">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="准备就绪" Foreground="#00B894" FontWeight="SemiBold" FontSize="12"/>
-                    </StackPanel>
-                    <Button DockPanel.Dock="Right" Content="导出结果到 Excel" Background="{StaticResource PrimaryTeal}" Click="BtnExport_Click" VerticalAlignment="Center" Padding="20,8"/>
-                </DockPanel>
-            </Border>
-        </Grid>
+        <Border Grid.Row="3" Margin="18,0,18,18" Style="{StaticResource GlassCardStyle}" Padding="18,14">
+            <DockPanel LastChildFill="False">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="10" Height="10" Background="{StaticResource AccentGreenBrush}" CornerRadius="5" Margin="0,0,10,0"/>
+                    <TextBlock Text="准备就绪"
+                               Foreground="{StaticResource PrimaryTextBrush}"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="  ·  预览可编辑，导出保留原模板样式"
+                               Foreground="{StaticResource SecondaryTextBrush}"
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
 
+                <Button DockPanel.Dock="Right"
+                        Content="导出结果到 Excel"
+                        Background="{StaticResource AccentBlueBrush}"
+                        Click="BtnExport_Click"
+                        Padding="22,12"
+                        FontSize="14"/>
+            </DockPanel>
+        </Border>
     </Grid>
 </Window>
