@@ -3,3 +3,5 @@ bin/
 obj/
 *.user
 .dotnet-home/
+11_probe_export.xlsx
+tools/

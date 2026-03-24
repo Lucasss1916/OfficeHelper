@@ -14,6 +14,11 @@
     </Resource>
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="tools\**\*.cs" />
+    <EmbeddedResource Remove="tools\**\*" />
+    <None Remove="tools\**\*.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.104.0" />
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.0.2" />
   </ItemGroup>
