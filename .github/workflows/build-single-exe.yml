@@ -1,0 +1,35 @@
+name: Build Single EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore .\RandomScoreAllocatorWPF.csproj
+
+      - name: Publish single-file EXE
+        run: dotnet publish .\RandomScoreAllocatorWPF.csproj /p:PublishProfile=Properties\PublishProfiles\SingleFile-win-x64.pubxml
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OfficeHelper-win-x64-single-exe
+          path: .\bin\Release\net8.0-windows\publish\win-x64-single-file\
+          if-no-files-found: error

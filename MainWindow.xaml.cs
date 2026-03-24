@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Controls;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using ClosedXML.Excel;
 
@@ -13,7 +15,13 @@ namespace RandomScoreAllocatorWPF
     public partial class MainWindow : Window
     {
         private string _loadedFilePath = "";
-        private DataTable _previewTable = null;
+        private string _selectedSheetName = "";
+        private DataTable? _previewTable = null;
+        private List<string> _currentSubjectList = new();
+        private List<int> _currentEffectiveMaxScoreList = new();
+        private int _currentMinEach = 0;
+        private bool _currentUseFixedSeed = true;
+        private bool _isUpdatingPreviewGrid = false;
 
         public MainWindow()
         {
@@ -35,9 +43,110 @@ namespace RandomScoreAllocatorWPF
 
             if (dialog.ShowDialog() == true)
             {
-                _loadedFilePath = dialog.FileName;
-                TxtFile.Text = _loadedFilePath;
-                MessageBox.Show("文件已选中。", "准备就绪");
+                try
+                {
+                    _loadedFilePath = dialog.FileName;
+                    TxtFile.Text = _loadedFilePath;
+                    LoadWorkbookSheets();
+                    MessageBox.Show("文件已选中。", "准备就绪");
+                }
+                catch (Exception ex)
+                {
+                    _loadedFilePath = "";
+                    _selectedSheetName = "";
+                    TxtFile.Text = "请选择文件...";
+                    CmbSheets.ItemsSource = null;
+                    CmbSheets.SelectedItem = null;
+                    MessageBox.Show($"读取工作表失败: {ex.Message}", "错误");
+                }
+            }
+        }
+
+        private void LoadWorkbookSheets()
+        {
+            CmbSheets.ItemsSource = null;
+            CmbSheets.SelectedItem = null;
+            _selectedSheetName = "";
+            _previewTable = null;
+            _currentSubjectList.Clear();
+            _currentEffectiveMaxScoreList.Clear();
+            GridPreview.ItemsSource = null;
+
+            using var wb = new XLWorkbook(_loadedFilePath);
+            var sheetNames = wb.Worksheets.Select(ws => ws.Name).ToList();
+
+            CmbSheets.ItemsSource = sheetNames;
+            if (sheetNames.Count > 0)
+            {
+                CmbSheets.SelectedIndex = 0;
+            }
+        }
+
+        private void CmbSheets_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _selectedSheetName = CmbSheets.SelectedItem?.ToString() ?? "";
+            _previewTable = null;
+            _currentSubjectList.Clear();
+            _currentEffectiveMaxScoreList.Clear();
+            GridPreview.ItemsSource = null;
+        }
+
+        private void GridPreview_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
+        {
+            if (e.PropertyName == "计算和")
+            {
+                e.Column.IsReadOnly = true;
+            }
+        }
+
+        private void GridPreview_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (_isUpdatingPreviewGrid || e.EditAction != DataGridEditAction.Commit)
+                return;
+
+            if (e.Row.Item is not DataRowView rowView)
+                return;
+
+            string columnName = e.Column.Header?.ToString() ?? string.Empty;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                HandlePreviewCellEdited(rowView.Row, columnName);
+            }), DispatcherPriority.Background);
+        }
+
+        private void HandlePreviewCellEdited(DataRow row, string columnName)
+        {
+            if (_previewTable == null || _currentSubjectList.Count == 0 || _isUpdatingPreviewGrid)
+                return;
+
+            if (columnName == "姓名" || string.IsNullOrWhiteSpace(columnName))
+                return;
+
+            try
+            {
+                _isUpdatingPreviewGrid = true;
+
+                if (columnName == "原总分")
+                {
+                    RecalculateRowFromTotal(row);
+                }
+                else if (_currentSubjectList.Contains(columnName))
+                {
+                    RecalculateRowFromEditedSubject(row, columnName);
+                }
+                else if (columnName == "计算和")
+                {
+                    row["计算和"] = CalculateRowSubjectSum(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"更新当前行失败: {ex.Message}", "错误");
+            }
+            finally
+            {
+                _isUpdatingPreviewGrid = false;
             }
         }
 
@@ -49,12 +158,23 @@ namespace RandomScoreAllocatorWPF
                 return;
             }
 
+            if (string.IsNullOrWhiteSpace(_selectedSheetName))
+            {
+                MessageBox.Show("请选择需要查看的工作表。", "提示");
+                return;
+            }
+
             try
             {
                 using var wb = new XLWorkbook(_loadedFilePath);
-                var ws = wb.Worksheet(1);
+                var ws = wb.Worksheet(_selectedSheetName);
                 var headerRow = ws.Row(1);
-                int lastCol = headerRow.LastCellUsed().Address.ColumnNumber;
+                var lastHeaderCell = headerRow.LastCellUsed();
+
+                if (lastHeaderCell == null)
+                    throw new Exception("当前工作表没有可识别的表头。");
+
+                int lastCol = lastHeaderCell.Address.ColumnNumber;
 
                 // --- 1. 识别列 ---
                 int nameColIndex = -1;
@@ -112,12 +232,39 @@ namespace RandomScoreAllocatorWPF
                 int rowIndex = 0;
                 int minEach = 0;
                 if (int.TryParse(TxtMinEach.Text, out int minVal)) minEach = minVal;
+                double? maxEachLimitPercent = null;
+
+                if (!string.IsNullOrWhiteSpace(TxtMaxEachLimit.Text))
+                {
+                    if (!double.TryParse(TxtMaxEachLimit.Text, out double maxLimitPercentValue) || maxLimitPercentValue < 0 || maxLimitPercentValue > 100)
+                        throw new Exception("最高分百分比上限必须是 0 到 100 之间的数字。");
+
+                    maxEachLimitPercent = maxLimitPercentValue;
+                }
 
                 bool useFixedSeed = ChkFixedSeed.IsChecked == true;
                 var subjectList = subjectMaxScores.Keys.ToList();
                 var maxScoreList = subjectMaxScores.Values.ToList();
+                var effectiveMaxScoreList = maxScoreList
+                    .Select(maxScore =>
+                    {
+                        if (!maxEachLimitPercent.HasValue)
+                            return maxScore;
 
-                int recognizedPaperMax = maxScoreList.Sum();
+                        int percentLimitedMax = (int)Math.Floor(maxScore * (maxEachLimitPercent.Value / 100.0));
+                        return Math.Min(maxScore, percentLimitedMax);
+                    })
+                    .ToList();
+
+                if (effectiveMaxScoreList.Any(maxScore => maxScore < minEach))
+                    throw new Exception("存在科目的最高分上限低于最低分，请调整参数。");
+
+                _currentSubjectList = new List<string>(subjectList);
+                _currentEffectiveMaxScoreList = new List<int>(effectiveMaxScoreList);
+                _currentMinEach = minEach;
+                _currentUseFixedSeed = useFixedSeed;
+
+                int recognizedPaperMax = effectiveMaxScoreList.Sum();
 
                 foreach (var row in rows)
                 {
@@ -139,7 +286,7 @@ namespace RandomScoreAllocatorWPF
                         scores = ScoreAllocator.Allocate(
                             targetTotal,
                             subjectList,
-                            maxScoreList,
+                            effectiveMaxScoreList,
                             minEach: minEach,
                             seed: seed
                         );
@@ -162,7 +309,7 @@ namespace RandomScoreAllocatorWPF
                 }
 
                 GridPreview.ItemsSource = _previewTable.DefaultView;
-                MessageBox.Show($"生成完成！\n程序识别到的卷面总满分是: {recognizedPaperMax} 分。", "完成");
+                MessageBox.Show($"生成完成！\n当前工作表: {_selectedSheetName}\n按限制后可分配总满分: {recognizedPaperMax} 分。", "完成");
             }
             catch (Exception ex)
             {
@@ -190,7 +337,8 @@ namespace RandomScoreAllocatorWPF
                 {
                     using (var wb = new XLWorkbook())
                     {
-                        var ws = wb.Worksheets.Add("分配详情");
+                        var exportSheetName = string.IsNullOrWhiteSpace(_selectedSheetName) ? "分配详情" : $"{_selectedSheetName}_分配详情";
+                        var ws = wb.Worksheets.Add(exportSheetName.Length > 31 ? exportSheetName.Substring(0, 31) : exportSheetName);
                         ws.Cell(1, 1).InsertTable(_previewTable);
                         ws.Columns().AdjustToContents();
                         wb.SaveAs(saveDialog.FileName);
@@ -202,6 +350,131 @@ namespace RandomScoreAllocatorWPF
                     MessageBox.Show($"导出失败: {ex.Message}", "错误");
                 }
             }
+        }
+
+        private void RecalculateRowFromTotal(DataRow row)
+        {
+            int targetTotal = GetRowIntValue(row, "原总分");
+            int rowIndex = GetRowIndex(row);
+
+            Dictionary<string, int> scores;
+            bool shouldUpdateTargetTotal = false;
+            if (targetTotal <= 0)
+            {
+                scores = _currentSubjectList.ToDictionary(subject => subject, _ => 0);
+                targetTotal = 0;
+                shouldUpdateTargetTotal = true;
+            }
+            else
+            {
+                int? seed = _currentUseFixedSeed ? (rowIndex * 999 + targetTotal) : (int?)null;
+                scores = ScoreAllocator.Allocate(
+                    targetTotal,
+                    _currentSubjectList,
+                    _currentEffectiveMaxScoreList,
+                    minEach: _currentMinEach,
+                    seed: seed
+                );
+            }
+
+            ApplyRowScores(row, scores, targetTotal, updateTargetTotal: shouldUpdateTargetTotal);
+        }
+
+        private void RecalculateRowFromEditedSubject(DataRow row, string editedSubject)
+        {
+            int editedIndex = _currentSubjectList.IndexOf(editedSubject);
+            if (editedIndex < 0)
+                return;
+
+            int editedValue = GetRowIntValue(row, editedSubject);
+            editedValue = Math.Max(_currentMinEach, Math.Min(_currentEffectiveMaxScoreList[editedIndex], editedValue));
+
+            int originalTargetTotal = GetRowIntValue(row, "原总分");
+
+            var remainingSubjects = new List<string>();
+            var remainingMaxScores = new List<int>();
+
+            for (int i = 0; i < _currentSubjectList.Count; i++)
+            {
+                if (i == editedIndex)
+                    continue;
+
+                remainingSubjects.Add(_currentSubjectList[i]);
+                remainingMaxScores.Add(_currentEffectiveMaxScoreList[i]);
+            }
+
+            int remainingMinTotal = remainingSubjects.Count * _currentMinEach;
+            int remainingMaxTotal = remainingMaxScores.Sum();
+            int adjustedTargetTotal = Math.Max(originalTargetTotal, editedValue);
+            adjustedTargetTotal = Math.Max(adjustedTargetTotal, editedValue + remainingMinTotal);
+            adjustedTargetTotal = Math.Min(adjustedTargetTotal, editedValue + remainingMaxTotal);
+
+            Dictionary<string, int> recalculatedScores;
+            if (remainingSubjects.Count == 0)
+            {
+                recalculatedScores = new Dictionary<string, int>();
+            }
+            else
+            {
+                int remainingTarget = adjustedTargetTotal - editedValue;
+                int rowIndex = GetRowIndex(row);
+                int? seed = _currentUseFixedSeed ? (rowIndex * 999 + adjustedTargetTotal) : (int?)null;
+
+                recalculatedScores = ScoreAllocator.Allocate(
+                    remainingTarget,
+                    remainingSubjects,
+                    remainingMaxScores,
+                    minEach: _currentMinEach,
+                    seed: seed
+                );
+            }
+
+            recalculatedScores[editedSubject] = editedValue;
+            row["原总分"] = adjustedTargetTotal;
+            ApplyRowScores(row, recalculatedScores, adjustedTargetTotal, updateTargetTotal: true);
+        }
+
+        private void ApplyRowScores(DataRow row, Dictionary<string, int> scores, int targetTotal, bool updateTargetTotal)
+        {
+            foreach (var subject in _currentSubjectList)
+            {
+                row[subject] = scores.TryGetValue(subject, out int score) ? score : 0;
+            }
+
+            if (updateTargetTotal)
+            {
+                row["原总分"] = targetTotal;
+            }
+
+            row["计算和"] = CalculateRowSubjectSum(row);
+        }
+
+        private int CalculateRowSubjectSum(DataRow row)
+        {
+            int sum = 0;
+            foreach (var subject in _currentSubjectList)
+            {
+                sum += GetRowIntValue(row, subject);
+            }
+
+            return sum;
+        }
+
+        private int GetRowIntValue(DataRow row, string columnName)
+        {
+            if (!_previewTable!.Columns.Contains(columnName))
+                return 0;
+
+            string rawValue = row[columnName]?.ToString()?.Trim() ?? string.Empty;
+            if (!int.TryParse(rawValue, out int value))
+                return 0;
+
+            return value;
+        }
+
+        private int GetRowIndex(DataRow row)
+        {
+            return _previewTable == null ? 1 : _previewTable.Rows.IndexOf(row) + 1;
         }
     }
 }

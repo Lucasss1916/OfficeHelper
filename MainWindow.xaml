@@ -104,7 +104,7 @@
             <DockPanel LastChildFill="False">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Width="24" Height="24" Margin="0,0,12,0">
-                        <Image Source="/brsjc-uyor5-001.ico" 
+                        <Image Source="/icon.ico" 
            RenderOptions.BitmapScalingMode="HighQuality" 
            HorizontalAlignment="Center" 
            VerticalAlignment="Center"/>
@@ -141,12 +141,16 @@
                         <Button Grid.Column="1" Content="浏览..." Background="{StaticResource AccentPurple}" Click="BtnBrowse_Click"/>
                     </Grid>
                     <TextBlock Text="格式: 第一行需包含 姓名 | 学科(分数)|总分（分数）" Foreground="#B2BEC3" FontSize="11" Margin="2,4,0,0"/>
+                    <TextBlock Text="工作表" FontSize="11" Foreground="#636E72" Margin="2,10,0,0"/>
+                    <ComboBox x:Name="CmbSheets" Margin="0,4,0,0" SelectionChanged="CmbSheets_SelectionChanged"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
                     <TextBlock Text="生成参数" Style="{StaticResource LabelStyle}"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="*"/>
@@ -158,8 +162,13 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
+                            <TextBlock Text="最高分百分比上限" FontSize="11" Foreground="#636E72"/>
+                            <TextBox x:Name="TxtMaxEachLimit" Text="" Margin="0,4,0,0" HorizontalContentAlignment="Center"/>
+                        </StackPanel>
 
-                            <CheckBox x:Name="ChkFixedSeed" Content="固定随机种子" IsChecked="True" VerticalAlignment="Bottom" FontSize="12" Foreground="#2D3436"/>
+                        <StackPanel Grid.Column="4">
+
+                            <CheckBox x:Name="ChkFixedSeed" Content="固定随机种子" IsChecked="True" VerticalAlignment="Bottom" FontSize="12" Foreground="#2D3436" Margin="0,22,0,0"/>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
@@ -187,8 +196,10 @@
                 </Border>
 
                 <DataGrid Grid.Row="1" x:Name="GridPreview" BorderThickness="0" Background="White" 
-                          AutoGenerateColumns="True" CanUserAddRows="False" IsReadOnly="True"
-                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F0F0F0" RowHeaderWidth="0"/>
+                          AutoGenerateColumns="True" CanUserAddRows="False" IsReadOnly="False"
+                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F0F0F0" RowHeaderWidth="0"
+                          AutoGeneratingColumn="GridPreview_AutoGeneratingColumn"
+                          CellEditEnding="GridPreview_CellEditEnding"/>
             </Grid>
         </Border>
 
