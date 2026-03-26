@@ -749,13 +749,20 @@ namespace RandomScoreAllocatorWPF
 
         private bool? ShowStyledDialog(string title, string message, bool showOpenLinkButton = false)
         {
+            double cardWidth = 460;
+            double cardHeight = showOpenLinkButton ? 310 : 270;
+            double ownerWidth = ActualWidth > 0 ? ActualWidth : Width;
+            double ownerHeight = ActualHeight > 0 ? ActualHeight : Height;
+
             var dialog = new Window
             {
                 Title = title,
                 Owner = this,
-                Width = 460,
-                Height = showOpenLinkButton ? 310 : 270,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Width = ownerWidth,
+                Height = ownerHeight,
+                Left = Left,
+                Top = Top,
+                WindowStartupLocation = WindowStartupLocation.Manual,
                 ResizeMode = ResizeMode.NoResize,
                 WindowStyle = WindowStyle.None,
                 Background = Brushes.Transparent,
@@ -764,14 +771,16 @@ namespace RandomScoreAllocatorWPF
             };
 
             var primaryTextBrush = new SolidColorBrush(Color.FromRgb(22, 32, 51));
-            var secondaryTextBrush = new SolidColorBrush(Color.FromRgb(107, 118, 139));
-            var cardBackgroundBrush = new SolidColorBrush(Color.FromRgb(249, 251, 254));
-            var cardBorderBrush = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+            var secondaryTextBrush = new SolidColorBrush(Color.FromRgb(96, 110, 132));
+            var cardBackgroundBrush = new SolidColorBrush(Color.FromRgb(226, 234, 245));
+            var cardBorderBrush = new SolidColorBrush(Color.FromRgb(244, 248, 253));
             var accentBlueBrush = new SolidColorBrush(Color.FromRgb(10, 132, 255));
-            var neutralButtonBrush = new SolidColorBrush(Color.FromRgb(232, 237, 244));
+            var neutralButtonBrush = new SolidColorBrush(Color.FromRgb(206, 216, 229));
 
             var rootBorder = new Border
             {
+                Width = cardWidth,
+                MinHeight = cardHeight,
                 Background = cardBackgroundBrush,
                 BorderBrush = cardBorderBrush,
                 BorderThickness = new Thickness(1),
@@ -781,7 +790,7 @@ namespace RandomScoreAllocatorWPF
 
             var overlayGrid = new Grid
             {
-                Background = new SolidColorBrush(Color.FromArgb(150, 247, 250, 253))
+                Background = new SolidColorBrush(Color.FromArgb(215, 198, 210, 226))
             };
 
             var hostGrid = new Grid();
@@ -814,8 +823,8 @@ namespace RandomScoreAllocatorWPF
 
             var contentBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(243, 247, 252)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(225, 233, 243)),
+                Background = new SolidColorBrush(Color.FromRgb(215, 225, 238)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(194, 206, 222)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(18),
                 Padding = new Thickness(16),
